@@ -28,7 +28,7 @@ app.use("/api/v1/user", userRouter);
 app.use("/api/v1/category", categoryRouter);
 app.use("/api/v1/product", productRouter);
 
-app.listen(process.env.PORT, () => {
+app.listen(process.env.PORT || 3000, () => {
   console.log(
     `Server is running in ${envMode} mode on port ${process.env.PORT}`
   );

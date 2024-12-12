@@ -44,20 +44,33 @@ const productSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    discount: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
     quantity: {
       type: Number,
       required: true,
+      default: 0,
     },
     stock: {
       type: Number,
       required: true,
       default: 0,
     },
-    sizes: {
-      type: String,
-      enum: ["S", "M", "L", "XL", "XXL"],
+    sold: {
+      type: Number,
       required: true,
+      default: 0,
     },
+    sizes: [
+      {
+        type: String,
+        required: true,
+        enum: ["S", "M", "L", "XL", "XXL"],
+      },
+    ],
     reviews: [
       {
         type: mongoose.Schema.Types.ObjectId,

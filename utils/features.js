@@ -32,18 +32,37 @@ export const uploadFile = async (files = []) => {
     throw new SendError(error.message || "Something went wrong", 400);
   }
 };
-
-export const cookieOpt = {
-  maxAge: 15 * 24 * 60 * 60 * 1000, // 15 days
-  sameSite: "none",
-  httpOnly: true,
-  secure: true,
+export const deleteFile = async (publicId = []) => {
+  const deletePublic = publicId.map((id) => {
+    return new Promise((resolve, reject) => {
+      cloudinary.uploader.destroy(id, (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      });
+    });
+  });
+  try {
+    const res = await Promise.all(deletePublic);
+    return res;
+  } catch (error) {
+    throw new SendError(error.message || "Something went wrong", 400);
+  }
 };
 
-export const sendTokenToClient = (res, user, statusCode = 200, message) => {
+export const sendToken = (res, user, statusCode, message) => {
   const token = user.getJWTToken();
+
   res
     .status(statusCode)
-    .cookie("token", token, cookieOpt)
-    .json({ success: true, message, user });
+    .cookie("token", token, {
+      expires: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+    })
+    .json({
+      success: true,
+      message,
+      user,
+    });
 };

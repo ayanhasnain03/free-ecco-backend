@@ -22,6 +22,7 @@ router.post(
 );
 router.post("/login", loginUser);
 router.use(isAuthenticated);
+
 router.get("/logout", logOutUser);
 router.get("/profile", getProfile);
 router.put("/profile/update", avtarUpload, updateProfile);

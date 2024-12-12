@@ -12,7 +12,7 @@ dbConnect();
 app.use(express.json());
 app.use(cookieParser());
 const corsOptions = {
-  origin: "https://free-ecco-backend.onrender.com",
+  origin: process.env.CLIENT_URL,
   credentials: true,
 };
 

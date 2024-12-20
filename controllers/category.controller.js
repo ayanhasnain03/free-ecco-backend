@@ -21,12 +21,12 @@ export const createCategory = asyncHandler(async (req, res, next) => {
 
 
 export const getCategories = asyncHandler(async (req, res, next) => {
-  const { forWhat } = req.query; 
+  const { forwhat } = req.query; 
 
 
   const validForValues = ["mens", "womens", "kids"];
-  if (forWhat && !validForValues.includes(forWhat)) {
-    return next(new SendError("Invalid 'forWhat' value. It must be 'men', 'women', or 'kids'.", 400));
+  if (forwhat && !validForValues.includes(forwhat)) {
+    return next(new SendError("Invalid 'forwhat' value. It must be 'men', 'women', or 'kids'.", 400));
   }
 
   
@@ -40,7 +40,7 @@ export const getCategories = asyncHandler(async (req, res, next) => {
       },
     },
     {
-      $match: forWhat ? { "products.for": forWhat } : {}, 
+      $match: forwhat ? { "products.for": forwhat } : {}, 
     },
     {
       $group: {
@@ -57,6 +57,6 @@ export const getCategories = asyncHandler(async (req, res, next) => {
 
   res.json({
     success: true,
-    categories, screenX
+    categories
   });
 });

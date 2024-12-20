@@ -98,7 +98,6 @@ export const getProducts = asyncHandler(async (req, res, next) => {
 export const searchProducts = asyncHandler(async (req, res, next) => {
   const { keyword } = req.query;
 
-  // Validate the keyword
   if (!keyword || keyword.trim() === "") {
     return res.status(400).json({
       success: false,

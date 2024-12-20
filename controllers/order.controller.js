@@ -126,7 +126,7 @@ export const createOrder = asyncHandler(async (req, res, next) => {
     razorpayOrderId,
   } = req.body;
 
- 
+ console.log(req.body);
   if (
     !userId ||
     !items ||

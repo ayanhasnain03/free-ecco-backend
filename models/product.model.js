@@ -71,6 +71,12 @@ const productSchema = new mongoose.Schema(
         enum: ["S", "M", "L", "XL", "XXL"],
       },
     ],
+    for:[
+      {
+        type: String,
+        required: true,
+        enum: ["mens", "womens", "kids"],
+    }],
     reviews: [
       {
         type: mongoose.Schema.Types.ObjectId,

@@ -8,7 +8,7 @@ import {
   userRegister,
 } from "../controllers/user.controller.js";
 import { avtarUpload } from "../middlewares/multer.js";
-import { registerValidation, validateHandler } from "../lib/validator.js";
+import { registerValidation, validateHandler,loginValidation } from "../lib/validator.js";
 import { isAdmin, isAuthenticated } from "../middlewares/authentication.js";
 
 const router = express.Router();
@@ -20,7 +20,7 @@ router.post(
   validateHandler,
   userRegister
 );
-router.post("/login", loginUser);
+router.post("/login",loginValidation, validateHandler, loginUser);
 router.use(isAuthenticated);
 
 router.get("/logout", logOutUser);

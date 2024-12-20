@@ -4,7 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import dbConnect from "./lib/db.con.js";
 import { v2 as cloudinary } from "cloudinary";
-import Razorpay from "razorpay";
+
 const app = express();
 dotenv.config();
 dbConnect();
@@ -37,6 +37,10 @@ app.use("/api/v1/category", categoryRouter);
 app.use("/api/v1/product", productRouter);
 app.use("/api/v1/payment", payMentRoute);
 app.use("/api/v1/order", orderRouter);
+
+
+
+
 
 app.listen(process.env.PORT || 3000, () => {
   console.log(

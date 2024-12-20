@@ -2,6 +2,8 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import { asyncHandler } from "../middlewares/error.js";
 
+import Order from "../models/order.model.js";
+
 const razorpay = new Razorpay({
   key_id: "rzp_test_H3dRMlyt954d2B",
   key_secret: "pVb1TwmyhM0fphTKFY6YSeoC",
@@ -32,7 +34,7 @@ export const createPaymentIntent = asyncHandler(async (req, res, next) => {
 export const verifyPayment = asyncHandler(async (req, res, next) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
     req.body;
-  console.log(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+
   try {
     const body = razorpay_order_id + "|" + razorpay_payment_id;
 
@@ -42,12 +44,13 @@ export const verifyPayment = asyncHandler(async (req, res, next) => {
       .digest("hex");
 
     if (generated_signature === razorpay_signature) {
+
       res.status(200).json({
         success: true,
         message: "Payment verification successful",
       });
     } else {
-      // Signature mismatch
+
       res.status(400).json({
         success: false,
         message: "Payment verification failed. Invalid signature.",

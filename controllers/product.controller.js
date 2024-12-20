@@ -5,13 +5,18 @@ import { deleteFile, uploadFile } from "../utils/features.js";
 import { SendError } from "../utils/sendError.js";
 import cloudinary from "cloudinary";
 export const getProducts = asyncHandler(async (req, res, next) => {
-  const { category, price, brand, sort, discount, sizes } = req.query;
+  const { category, price, brand, sort, discount, sizes, forwhat } = req.query;
 
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 8;
   const skip = (page - 1) * limit;
 
   const baseQuery = {};
+
+  if (forwhat) {
+  
+    baseQuery.for = forwhat;
+  }
 
   if (category) {
     const categoryId = await Category.findOne({ name: category }).select("_id");
@@ -21,10 +26,13 @@ export const getProducts = asyncHandler(async (req, res, next) => {
   }
 
   if (brand) {
-    baseQuery.brand = brand;
+    const brandArray = brand.split(",");
+    baseQuery.brand = { $in: brandArray };
   }
+
   if (sizes) {
-    baseQuery.sizes = sizes;
+    const sizeArray = sizes.split(",");
+    baseQuery.sizes = { $all: sizeArray };
   }
 
   if (price) {
@@ -85,6 +93,35 @@ export const getProducts = asyncHandler(async (req, res, next) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+
+export const searchProducts = asyncHandler(async (req, res, next) => {
+  const { keyword } = req.query;
+
+  // Validate the keyword
+  if (!keyword || keyword.trim() === "") {
+    return res.status(400).json({
+      success: false,
+      message: "Keyword is required for searching.",
+    });
+  }
+
+  
+  const products = await Product.find({
+    $or: [
+      { name: { $regex: keyword, $options: "i" } },
+      { description: { $regex: keyword, $options: "i" } },
+    ],
+  }) .select("name description images") 
+  .populate("category", "name");
+
+  res.status(200).json({
+    success: true,
+    products,
+  });
+});
+
+
 export const getProductById = asyncHandler(async (req, res, next) => {
   const id = req.params.id;
   const product = await Product.findById(id).populate("category", "name");
@@ -124,8 +161,9 @@ export const deleteProduct = asyncHandler(async (req, res, next) => {
 
 export const createProduct = asyncHandler(async (req, res, next) => {
   const files = req.files || [];
-  const { name, description, price, brand, stock, category, sizes, discount } =
+  const { name, description, price, brand, stock, category, sizes,for:forwhat } =
     req.body;
+
   const categoryID = await Category.findOne({ name: category }).select("_id");
   if (!categoryID) {
     return next(new SendError("Category not found", 404));
@@ -138,7 +176,6 @@ export const createProduct = asyncHandler(async (req, res, next) => {
     !stock ||
     !categoryID ||
     !sizes ||
-    !discount ||
     files.length === 0
   ) {
     return next(
@@ -159,8 +196,8 @@ export const createProduct = asyncHandler(async (req, res, next) => {
       stock,
       images,
       sizes,
-      discount,
       category: categoryID,
+      for:forwhat
     });
     res.status(201).json({
       success: true,

@@ -1,104 +1,96 @@
 import mongoose from "mongoose";
 
-const schema = new mongoose.Schema({
-  shippingInfo: {
-    address: {
+const orderSchema = new mongoose.Schema(
+  {
+    orderId: {
       type: String,
       required: true,
+      unique: true,
     },
-    city: {
-      type: String,
-      required: true,
-    },
-    state: {
-      type: String,
-      required: true,
-    },
-    pinCode: {
-      type: Number,
-      required: true,
-    },
-    country: {
-      type: String,
-      required: true,
-    },
-    phoneNo: {
-      type: String,
-      required: true,
-    },
-    secondPhoneNo: {
-      type: String,
-      required: true,
-    },
-  },
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
-  paymentInfo: {
-    id: {
-      type: String,
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
     },
     status: {
       type: String,
+      enum: ["Pending", "Shipped", "Delivered", "Canceled", "Returned"],
+      default: "Pending",
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["Paid", "Unpaid", "Pending"],
+      default: "Unpaid",
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["razorpay", "COD"],
       required: true,
     },
-  },
-  paidAt: {
-    type: Date,
-    required: true,
-  },
-  itemsPrice: {
-    type: Number,
-    required: true,
-    default: 0,
-  },
-  taxPrice: {
-    type: Number,
-    required: true,
-    default: 0,
-  },
-  shippingPrice: {
-    type: Number,
-    required: true,
-    default: 0,
-  },
-  totalPrice: {
-    type: Number,
-    required: true,
-    default: 0,
-  },
-  orderItems: [
-    {
-      name: {
-        type: String,
-        required: true,
-      },
-      price: {
-        type: Number,
-        required: true,
-      },
-      quantity: {
-        type: Number,
-        required: true,
-      },
-      image: {
-        type: String,
-        required: true,
-      },
-      product: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Product",
-        required: true,
-      },
+    transactionId: {
+      type: String,
+      required: false,
     },
-  ],
-  createdAt: {
-    type: Date,
-    default: Date.now,
+    customerName: {
+      type: String,
+      required: true,
+    },
+    customerPhoneNumber: {
+      type: String,
+      required: true,
+      match: /^[0-9]{10}$/, 
+    },
+    shippingAddress: {
+      street: { type: String, required: true },
+      city: { type: String, required: true },
+      state: { type: String, required: true },
+      zipCode: { type: String, required: true },
+      country: { type: String, required: true },
+    },
+    estimatedDelivery: {
+      type: Date,
+      default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 
+    },
+    items: [
+      {
+        productId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
+        name: { type: String, required: true },
+        quantity: { type: Number, required: true },
+        price: { type: Number, required: true },
+        image: { type: String, required: true },
+        size: { type: String, required: true },
+      },
+    ],
+    discounts: {
+      type: Number,
+      default: 0,
+    },
+    tax: {
+      type: Number,
+      default: 0,
+    },
+    subtotal: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    total: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
   },
-});
-const Order = mongoose.model("Order", schema);
+  { timestamps: true }
+);
+
+orderSchema.index({ orderId: 1 });
+orderSchema.index({ userId: 1 });
+orderSchema.index({ status: 1 });
+
+const Order = mongoose.model("Order", orderSchema);
+
 export default Order;

@@ -26,14 +26,13 @@ export const userRegister = asyncHandler(async (req, res, next) => {
 });
 export const loginUser = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
-  if (!email || !password)
-    return next(new SendError("All fields are required", 400));
+
   const user = await User.findOne({ email }).select("+password");
   if (!user) return next(new SendError("Invalid Email or Password", 400));
   const isPasswordMatched = await user.comparePassword(password);
   if (!isPasswordMatched)
     return next(new SendError("Invalid Email or Password", 400));
-  sendToken(res, user, 200, "User Registered Successfully");
+  sendToken(res, user, 200,`Welcome ${user.name}`);
 });
 export const logOutUser = asyncHandler(async (req, res, next) => {
   res.cookie("token", null, {

@@ -11,12 +11,13 @@ dbConnect();
 
 app.use(express.json());
 app.use(cookieParser());
-const corsOptions = {
+
+
+app.use(cors({
   origin: process.env.CLIENT_URL,
   credentials: true,
-};
-
-app.use(cors(corsOptions));
+  methods: ["GET", "POST", "PUT", "DELETE"],
+}));
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -29,7 +30,7 @@ import { errorMiddleware } from "./middlewares/error.js";
 import userRouter from "./routes/user.route.js";
 import productRouter from "./routes/product.route.js";
 import categoryRouter from "./routes/category.route.js";
-import { generateFakeProducts } from "./seeds/product.seed.js";
+
 import payMentRoute from "./routes/payment.route.js";
 import orderRouter from "./routes/order.route.js";
 app.use("/api/v1/user", userRouter);
@@ -37,10 +38,6 @@ app.use("/api/v1/category", categoryRouter);
 app.use("/api/v1/product", productRouter);
 app.use("/api/v1/payment", payMentRoute);
 app.use("/api/v1/order", orderRouter);
-
-
-
-
 
 app.listen(process.env.PORT || 3000, () => {
   console.log(

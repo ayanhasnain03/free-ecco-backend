@@ -219,14 +219,14 @@ await product.save();
 });
 
 export const getMyOrders = asyncHandler(async (req, res, next) => {
-  const id = req.user;  // User ID from the authenticated user
+  const id = req.user;  
   const { page = 1, limit = 10} = req.query;
 
-  // Ensure page and limit are integers
+
   const pageNumber = parseInt(page, 10);
   const pageSize = parseInt(limit, 10);
 
-  // If page or limit are not numbers, fallback to default values
+
   if (isNaN(pageNumber) || pageNumber < 1) {
     return res.status(400).json({ success: false, message: "Invalid page number" });
   }

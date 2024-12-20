@@ -2,7 +2,7 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import { asyncHandler } from "../middlewares/error.js";
 
-import Order from "../models/order.model.js";
+
 
 const razorpay = new Razorpay({
   key_id: "rzp_test_H3dRMlyt954d2B",

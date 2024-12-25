@@ -1,32 +1,38 @@
 import { asyncHandler } from "../middlewares/error.js";
+import Product from "../models/product.model.js";
 import { User } from "../models/user.modal.js";
 import { sendToken, uploadFile } from "../utils/features.js";
 import { SendError } from "../utils/sendError.js";
 import cloudinary from "cloudinary";
 export const userRegister = asyncHandler(async (req, res, next) => {
-  const file = req.file || [];
-  if (!file) return next(new SendError("Avatar is required", 400));
+  const file = req.file ;
+  if(!file) return next(new SendError("Image is required", 400));
   const { name, email, password, gender, phoneNo } = req.body;
-  console.log(name, email, password, gender, file);
+  if (!name || !email || !password || !gender || !phoneNo)
+    return next(new SendError("All fields are required", 400));
+  if(phoneNo.length !== 10) return next(new SendError("Phone number must be 10 digits", 400));
   const existUser = await User.findOne({ email });
   if (existUser) return next(new SendError("User already exist", 400));
   const result = await uploadFile([file]);
+  
   const avatar = {
     public_id: result[0].public_id,
     url: result[0].url,
   };
+ 
   const user = await User.create({
     name,
     email,
     password,
     gender,
     avatar,
+    phoneNo
   });
   sendToken(res, user, 200, "User Registered Successfully");
 });
 export const loginUser = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
-
+if(!email || !password) return next(new SendError("Email or Password is required", 400));
   const user = await User.findOne({ email }).select("+password");
   if (!user) return next(new SendError("Invalid Email or Password", 400));
   const isPasswordMatched = await user.comparePassword(password);
@@ -45,7 +51,10 @@ export const logOutUser = asyncHandler(async (req, res, next) => {
   });
 });
 export const getProfile = asyncHandler(async (req, res, next) => {
-  const getUser = await User.findById(req.user).select("-password");
+  const getUser = await User.findById(req.user).select("-password").populate(
+    "wishlist",
+    "name description images _id"
+  )
   res.json({
     success: true,
     user: getUser,
@@ -93,3 +102,39 @@ export const updateProfile = asyncHandler(async (req, res, next) => {
     },
   });
 });
+export const addtoWishList = asyncHandler(async (req, res, next) => {
+  const { productId } = req.body;
+  const user = await User.findById(req.user)
+  if (!user) return next(new SendError("User not found", 404));
+if(user.wishlist.includes(productId)) return next(new SendError("Product already in wishlist", 400));
+  user.wishlist.push(productId);
+
+  await user.save();
+
+  res.json({
+    success: true,
+    message: "Product added to wishlist successfully",
+  });
+})
+export const removeFromWishList = asyncHandler(async (req, res, next) => {
+  const { productId } = req.body;
+  const user = await User.findById(req.user)
+  if (!user) return next(new SendError("User not found", 404));
+
+  user.wishlist.pull(productId);
+  
+  await user.save();
+
+  res.json({
+    success: true,
+    message: "Product removed from wishlist successfully",
+  });
+})
+export const getWishList = asyncHandler(async (req, res, next) => {
+  const user = await User.findById(req.user).populate("wishlist");
+  if (!user) return next(new SendError("User not found", 404));
+  res.json({
+    success: true,
+    wishlist: user.wishlist,
+  });
+})

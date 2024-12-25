@@ -125,9 +125,6 @@ export const createOrder = asyncHandler(async (req, res, next) => {
     customerName,
     razorpayOrderId,
   } = req.body;
-
-  console.log('Received order data:', req.body); // Log the full request body to check data
-
   if (
     !userId ||
     !items ||
@@ -137,7 +134,7 @@ export const createOrder = asyncHandler(async (req, res, next) => {
     !subtotal ||
     !total
   ) {
-    console.log('Missing required fields');
+   
     return next(new SendError("Missing required fields", 400));
   }
 
@@ -145,11 +142,11 @@ export const createOrder = asyncHandler(async (req, res, next) => {
   const estimatedDelivery = new Date();
   estimatedDelivery.setDate(estimatedDelivery.getDate() + 5);
 
-  console.log('Generated order ID:', orderId); // Log the generated order ID
+
 
   const user = await User.findById(userId);
   if (!user) {
-    console.log('User not found for ID:', userId); // Log if user is not found
+  
     return next(new SendError("User not found", 404));
   }
 
@@ -176,9 +173,9 @@ export const createOrder = asyncHandler(async (req, res, next) => {
 
   try {
     await order.save();
-    console.log('Order saved successfully:', order); // Log if order is saved successfully
+    console.log('Order saved successfully:', order); 
   } catch (error) {
-    console.error('Error saving order:', error); // Log any errors that occur during order saving
+    console.error('Error saving order:', error); 
     return next(new SendError('Error saving order to the database', 500));
   }
 
@@ -191,19 +188,19 @@ export const createOrder = asyncHandler(async (req, res, next) => {
     );
 
     if (!product) {
-      console.log(`Product with ID ${item.productId} not found`); // Log if product is not found
+      console.log(`Product with ID ${item.productId} not found`); 
       return next(new SendError(`Product with ID ${item.productId} not found`, 404));
     }
 
-    console.log(`Product found: ${product.name}`); // Log if product is found
+    console.log(`Product found: ${product.name}`); 
 
     if (isNaN(product.stock) || isNaN(product.sold)) {
-      console.log(`Invalid stock or sold data for ${product.name}`); // Log if stock or sold data is invalid
+      console.log(`Invalid stock or sold data for ${product.name}`); 
       return next(new SendError(`Invalid stock or sold data for ${product.name}`, 400));
     }
 
     if (product.stock < item.quantity) {
-      console.log(`Insufficient stock for ${product.name}`); // Log if insufficient stock
+      console.log(`Insufficient stock for ${product.name}`);
       return next(new SendError(`Insufficient stock for ${product.name}`, 400));
     }
 
@@ -215,9 +212,9 @@ export const createOrder = asyncHandler(async (req, res, next) => {
 
     try {
       await product.save();
-      console.log(`Product updated: ${product.name}, Stock: ${product.stock}, Sold: ${product.sold}`); // Log if product is saved successfully
+      console.log(`Product updated: ${product.name}, Stock: ${product.stock}, Sold: ${product.sold}`);
     } catch (error) {
-      console.error('Error updating product:', error); // Log any errors during product update
+      console.error('Error updating product:', error); 
       return next(new SendError(`Error updating product ${product.name}`, 500));
     }
   }

@@ -1,9 +1,12 @@
 // routes/userRoutes.js
 import express from "express";
 import {
+  addtoWishList,
   getProfile,
+  getWishList,
   loginUser,
   logOutUser,
+  removeFromWishList,
   updateProfile,
   userRegister,
 } from "../controllers/user.controller.js";
@@ -16,15 +19,14 @@ const router = express.Router();
 router.post(
   "/register",
   avtarUpload,
-  registerValidation,
-  validateHandler,
   userRegister
 );
-router.post("/login",loginValidation, validateHandler, loginUser);
+router.post("/login", loginUser);
 router.use(isAuthenticated);
 
 router.get("/logout", logOutUser);
 router.get("/profile", getProfile);
 router.put("/profile/update", avtarUpload, updateProfile);
+router.route("/wishlist").post(addtoWishList).put(removeFromWishList).get(getWishList);
 
 export default router;

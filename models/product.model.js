@@ -83,27 +83,21 @@ const productSchema = new mongoose.Schema(
         ref: "Review",
       },
     ],
+    sale: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+    isFav: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
   },
   { timestamps: true }
 );
 
-productSchema.methods.updateProductRating = async function () {
-  const reviews = await mongoose.model("Review").find({ product: this._id });
-  const totalReviews = reviews.length;
 
-  if (totalReviews > 0) {
-    const avgRating =
-      reviews.reduce((acc, review) => acc + review.rating, 0) / totalReviews;
-
-    this.rating = avgRating;
-    this.numReviews = totalReviews;
-  } else {
-    this.rating = 0;
-    this.numReviews = 0;
-  }
-
-  await this.save();
-};
 
 const Product = mongoose.model("Product", productSchema);
 

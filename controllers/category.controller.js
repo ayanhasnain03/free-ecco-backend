@@ -22,13 +22,10 @@ export const createCategory = asyncHandler(async (req, res, next) => {
 
 export const getCategories = asyncHandler(async (req, res, next) => {
   const { forwhat } = req.query; 
-
-
   const validForValues = ["mens", "womens", "kids"];
   if (forwhat && !validForValues.includes(forwhat)) {
     return next(new SendError("Invalid 'forwhat' value. It must be 'men', 'women', or 'kids'.", 400));
   }
-
   
   const categories = await Category.aggregate([
     {
@@ -49,12 +46,10 @@ export const getCategories = asyncHandler(async (req, res, next) => {
       },
     },
   ]);
-
  
   if (categories.length === 0) {
     return next(new SendError("No categories found", 404));
   }
-
   res.json({
     success: true,
     categories

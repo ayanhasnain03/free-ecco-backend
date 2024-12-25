@@ -2,20 +2,32 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto"; 
+import validator from "validator";
 
 const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
       required: true,
+      trim: true,
+      maxLength: [30, "Name cannot exceed 30 characters"],
+      minLength: [3, "Name must be at least 3 characters"],
     },
     email: {
       type: String,
       required: true,
+      unique: true,
+      validate: [validator.isEmail, "Please enter a valid email address"],
+      lowercase: true,
+      trim: true,
+      maxLength: [50, "Email cannot exceed 50 characters"],
+      minLength: [3, "Email must be at least 3 characters"],
     },
     password: {
       type: String,
       required: true,
+      minLength: [6, "Password must be at least 6 characters"],
+      select: false,
     },
     role: {
       type: String,
@@ -40,43 +52,16 @@ const userSchema = new mongoose.Schema(
       required: [true, "Please enter Gender"],
     },
 
-    shippingInfo: {
-      address: {
-        type: String,
-      },
-      city: {
-        type: String,
-      },
-      state: {
-        type: String,
-      },
-      pinCode: {
-        type: Number,
-      },
-      country: {
-        type: String,
-      },
-      phoneNo: {
-        type: String,
-      },
-      secondPhoneNo: {
-        type: String,
-      },
-      addressType: {
-        type: String,
-        enum: {
-          values: ["home", "work", "other"],
-          message: "Please select correct address type",
-        },
-      },
+    phoneNo: {
+      type: String,
+      required: [true, "Please enter phone number"],
+     
     },
 
     wishlist: [
       {
-        product: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Product",
-        },
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
       },
     ],
 

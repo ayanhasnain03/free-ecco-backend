@@ -6,3 +6,4 @@ const upload = multer({
 export const avtarUpload = upload.single("avatar");
 export const productUpload = upload.array("images", 5);
 export const categoryUpload = upload.single("categoryImage");
+export const reviewUpload = upload.single("reviewImage");

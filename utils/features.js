@@ -1,6 +1,7 @@
 import { v2 as cloudinary } from "cloudinary";
 import { v4 as uuid } from "uuid";
 import { SendError } from "./sendError.js";
+
 const transformFileOnBase64 = (file) =>
   `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
 

@@ -80,15 +80,14 @@ export const createReview = asyncHandler(async (req, res, next) => {
 
   
     const totalRating = product.reviews.reduce((acc, item) => acc + (item.rating || 0), 0);
-    console.log("Total Rating:", totalRating);
-    console.log("Number of Reviews:", product.reviews.length);
+
 
     const newRating = totalRating / product.reviews.length;
-    console.log("New Calculated Rating:", newRating);
+
 
  
     if (isNaN(newRating) || newRating === Infinity || newRating === -Infinity) {
-      console.error("Invalid rating calculation. Total rating:", totalRating, "Reviews count:", product.reviews.length);
+     
       return next(new SendError("Failed to calculate valid product rating", 500));
     }
 
@@ -118,6 +117,7 @@ export const deleteReview = asyncHandler(async (req, res, next) => {
 
 
   const review = await Review.findById(id);
+  
   if (!review) {
     return next(new SendError("Review not found", 404));
   }

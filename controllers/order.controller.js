@@ -263,3 +263,15 @@ export const getMyOrders = asyncHandler(async (req, res, next) => {
     orders,
   });
 });
+
+export const getOrderById = asyncHandler(async (req, res, next) => {
+  const id = req.params.id;
+  const order = await Order.findById(id);
+  if (!order) {
+    return next(new SendError("Order not found", 404));
+  }
+  res.status(200).json({
+    success: true,
+    order,
+  });
+});

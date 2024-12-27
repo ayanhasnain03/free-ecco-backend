@@ -6,6 +6,7 @@ import {
   getProducts,
   getRelatedProducts,
   newProducts,
+  saleProducts,
   searchProducts,
   topSellingProducts,
 } from "../controllers/product.controller.js";
@@ -15,6 +16,7 @@ const router = express.Router();
 
 router.get("/", getProducts);
 router.get("/top-selling",topSellingProducts)
+router.get("/sale",saleProducts)
 router.get("/search", searchProducts);
 router.get("/related/:categoryID", getRelatedProducts);
 router.get("/new-arrivals", newProducts);

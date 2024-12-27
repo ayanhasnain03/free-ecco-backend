@@ -169,7 +169,7 @@ export const deleteProduct = asyncHandler(async (req, res, next) => {
 
 export const createProduct = asyncHandler(async (req, res, next) => {
   const files = req.files || [];
-  const { name, description, price, brand, stock, category, sizes,for:forwhat } =
+  const { name, description, price, brand, stock, category, sizes,for:forwhat,discount,sale } =
     req.body;
 
   const categoryID = await Category.findOne({ name: category }).select("_id");
@@ -207,7 +207,9 @@ export const createProduct = asyncHandler(async (req, res, next) => {
       images,
       sizes,
       category: categoryID,
-      for:forwhat
+      for:forwhat,
+      discount,
+      sale
     });
     res.status(201).json({
       success: true,
@@ -256,4 +258,10 @@ export const getRelatedProducts = asyncHandler(async (req, res, next) => {
 });
 
 
-
+export const saleProducts = asyncHandler(async (req, res, next) => {
+  const products = await Product.find({ sale: true }).limit(4);
+  res.status(200).json({
+    success: true,
+    products,
+  });
+});

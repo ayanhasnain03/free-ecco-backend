@@ -1,8 +1,9 @@
 import { asyncHandler } from "../middlewares/error.js";
 import Category from "../models/category.model.js";
 import Product from "../models/product.model.js";
+import Review from "../models/review.modal.js";
 
-import { uploadFile } from "../utils/features.js";
+import { deleteFile, uploadFile } from "../utils/features.js";
 import { SendError } from "../utils/sendError.js";
 import cloudinary from "cloudinary";
 export const getProducts = asyncHandler(async (req, res, next) => {
@@ -148,6 +149,16 @@ export const deleteProduct = asyncHandler(async (req, res, next) => {
     return next(new SendError("Product not found", 404));
   }
 
+  const reviews = await Review.find({ product: id }).select("_id image");
+
+const reviewPuclicIds = reviews.map((review) => review.image[0].public_id);
+
+for (const publicId of reviewPuclicIds) {
+  await cloudinary.v2.uploader.destroy(publicId);
+}
+
+  await Review.deleteMany({ product: id });
+
   try {
     if (product.images && product.images.length > 0) {
       for (const image of product.images) {
@@ -162,6 +173,10 @@ export const deleteProduct = asyncHandler(async (req, res, next) => {
     } else {
       return next(new SendError("No images found for this product", 404));
     }
+
+
+
+    
   } catch (error) {
     return next(new SendError("Failed to delete product images", 500));
   }

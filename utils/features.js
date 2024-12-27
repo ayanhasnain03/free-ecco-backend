@@ -33,20 +33,39 @@ export const uploadFile = async (files = []) => {
     throw new SendError(error.message || "Something went wrong", 400);
   }
 };
-export const deleteFile = async (publicId = []) => {
-  const deletePublic = publicId.map((id) => {
-    return new Promise((resolve, reject) => {
-      cloudinary.uploader.destroy(id, (error, result) => {
-        if (error) return reject(error);
-        resolve(result);
+export const deleteFile = async (publicIds = []) => {
+  if (!publicIds || publicIds.length === 0) {
+    throw new SendError("No images provided for deletion", 400);
+  }
+
+  try {
+    // Create a promise for each image deletion
+    const deletePromises = publicIds.map((id) => {
+      return new Promise((resolve, reject) => {
+        cloudinary.uploader.destroy(id, (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        });
       });
     });
-  });
-  try {
-    const res = await Promise.all(deletePublic);
-    return res;
+
+    // Wait for all deletion operations to complete
+    const results = await Promise.all(deletePromises);
+
+    // Filter out "not found" results
+    const failedDeletions = results.filter(
+      (result) => result.result !== "ok" && result.result !== "not found"
+    );
+
+    if (failedDeletions.length > 0) {
+      console.error("Failed deletions:", failedDeletions);
+      throw new SendError("Some images could not be deleted", 500);
+    }
+
+    return results;
   } catch (error) {
-    throw new SendError(error.message || "Something went wrong", 400);
+    console.error("Error deleting images:", error);
+    throw new SendError("Failed to delete images", 500);
   }
 };
 

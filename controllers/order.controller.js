@@ -145,6 +145,15 @@ export const createOrder = asyncHandler(async (req, res, next) => {
 
 
   const user = await User.findById(userId);
+  user.shippingAddress = {
+    address: shippingAddress.street,
+    city: shippingAddress.city,
+    state: shippingAddress.state,
+    pincode: shippingAddress.zipCode,
+    country: shippingAddress.country
+  };
+  await user.save();
+
   if (!user) {
   
     return next(new SendError("User not found", 404));
@@ -173,9 +182,9 @@ export const createOrder = asyncHandler(async (req, res, next) => {
 
   try {
     await order.save();
-    console.log('Order saved successfully:', order); 
+
   } catch (error) {
-    console.error('Error saving order:', error); 
+ 
     return next(new SendError('Error saving order to the database', 500));
   }
 
@@ -188,19 +197,19 @@ export const createOrder = asyncHandler(async (req, res, next) => {
     );
 
     if (!product) {
-      console.log(`Product with ID ${item.productId} not found`); 
+   
       return next(new SendError(`Product with ID ${item.productId} not found`, 404));
     }
 
-    console.log(`Product found: ${product.name}`); 
+
 
     if (isNaN(product.stock) || isNaN(product.sold)) {
-      console.log(`Invalid stock or sold data for ${product.name}`); 
+     
       return next(new SendError(`Invalid stock or sold data for ${product.name}`, 400));
     }
 
     if (product.stock < item.quantity) {
-      console.log(`Insufficient stock for ${product.name}`);
+    
       return next(new SendError(`Insufficient stock for ${product.name}`, 400));
     }
 
@@ -212,9 +221,9 @@ export const createOrder = asyncHandler(async (req, res, next) => {
 
     try {
       await product.save();
-      console.log(`Product updated: ${product.name}, Stock: ${product.stock}, Sold: ${product.sold}`);
+   
     } catch (error) {
-      console.error('Error updating product:', error); 
+     
       return next(new SendError(`Error updating product ${product.name}`, 500));
     }
   }

@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import crypto from "crypto"; 
+import crypto from "crypto";
 import validator from "validator";
 
 const userSchema = new mongoose.Schema(
@@ -55,7 +55,23 @@ const userSchema = new mongoose.Schema(
     phoneNo: {
       type: String,
       required: [true, "Please enter phone number"],
-     
+    },
+    shippingAddress: {
+      address: {
+        type: String,
+      },
+      city: {
+        type: String,
+      },
+      state: {
+        type: String,
+      },
+      pincode: {
+        type: String,
+      },
+      country: {
+        type: String,
+      },
     },
 
     wishlist: [
@@ -65,7 +81,6 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    
     resetPasswordToken: String,
     resetPasswordExpire: String,
   },
@@ -88,19 +103,17 @@ userSchema.methods.getJWTToken = function () {
   );
 };
 
-
 userSchema.methods.comparePassword = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
 
-
 userSchema.methods.getResetToken = function () {
-  const resetToken = crypto.randomBytes(20).toString("hex"); 
+  const resetToken = crypto.randomBytes(20).toString("hex");
   this.resetPasswordToken = crypto
     .createHash("sha256")
-    .update(resetToken) // Hash the token
+    .update(resetToken) 
     .digest("hex");
-  this.resetPasswordExpire = Date.now() + 15 * 60 * 1000; 
+  this.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
   return resetToken;
 };
 

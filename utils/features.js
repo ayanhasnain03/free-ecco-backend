@@ -39,7 +39,7 @@ export const deleteFile = async (publicIds = []) => {
   }
 
   try {
-    // Create a promise for each image deletion
+
     const deletePromises = publicIds.map((id) => {
       return new Promise((resolve, reject) => {
         cloudinary.uploader.destroy(id, (error, result) => {
@@ -49,10 +49,8 @@ export const deleteFile = async (publicIds = []) => {
       });
     });
 
-    // Wait for all deletion operations to complete
     const results = await Promise.all(deletePromises);
 
-    // Filter out "not found" results
     const failedDeletions = results.filter(
       (result) => result.result !== "ok" && result.result !== "not found"
     );
@@ -85,4 +83,18 @@ export const sendToken = (res, user, statusCode, message) => {
       message,
       user,
     });
+};
+
+export const calculatePercentageIncrease = (previousCount, currentCount) => {
+  if (previousCount === 0 && currentCount === 0) {
+    return { percentage: 0, color: 'black' }; 
+  }
+  if (previousCount === 0 && currentCount > 0) {
+    return { percentage: 100, color: 'green' }; 
+  }
+  
+  const percentageChange = ((currentCount - previousCount) / previousCount) * 100;
+  let color = percentageChange > 0 ? 'green' : percentageChange < 0 ? 'red' : 'black';
+
+  return { percentage: percentageChange.toFixed(2), color };
 };

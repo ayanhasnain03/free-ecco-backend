@@ -44,9 +44,11 @@ export const loginUser = asyncHandler(async (req, res, next) => {
   sendToken(res, user, 200, `Welcome ${user.name}`);
 });
 export const logOutUser = asyncHandler(async (req, res, next) => {
-  res.cookie("token", null, {
+  res.cookie("token", "", {
     expires: new Date(Date.now()),
     httpOnly: true,
+      secure: true,
+      sameSite: "none",
   });
   res.status(200).json({
     success: true,

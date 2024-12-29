@@ -17,7 +17,7 @@ app.use(morgan("dev"))
 app.use(cors({
   origin: process.env.CLIENT_URL,
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Allowed methods
+  methods: ["GET", "POST", "PUT", "DELETE"],
 }));
 
 cloudinary.config({

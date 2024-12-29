@@ -28,7 +28,7 @@ router.post("/forgetpassword",forgetpassword)
 router.post("/resetpassword/:token",resetpassword)
 router.use(isAuthenticated);
 
-router.get("/logout", logOutUser);
+router.post("/logout", logOutUser);
 router.get("/profile", getProfile);
 router.put("/profile/update", avtarUpload, updateProfile);
 

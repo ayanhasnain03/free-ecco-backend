@@ -284,3 +284,31 @@ export const getOrderById = asyncHandler(async (req, res, next) => {
     order,
   });
 });
+
+export const updateOrderStatus = asyncHandler(async (req, res, next) => {
+  const id = req.params.id;
+  const { status } = req.body;
+  console.log(status);
+  switch (status) {
+    case "Shipped":
+      break;
+    case "Delivered":
+      break;
+    case "Canceled":
+      break;
+    case "Returned":
+      break;
+    default:
+      return next(new SendError("Invalid status", 400));
+  }
+  const order = await Order.findById(id);
+  if (!order) {
+    return next(new SendError("Order not found", 404));
+  }
+  order.status = status;
+  await order.save();
+  res.status(200).json({
+    success: true,
+    message: "Order status updated successfully",
+  });
+});

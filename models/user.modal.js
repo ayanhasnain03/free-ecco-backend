@@ -111,9 +111,9 @@ userSchema.methods.getResetToken = function () {
   const resetToken = crypto.randomBytes(20).toString("hex");
   this.resetPasswordToken = crypto
     .createHash("sha256")
-    .update(resetToken) 
+    .update(resetToken)
     .digest("hex");
-  this.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+    this.resetPasswordExpire=Date.now()+ 15 * 60 * 1000;
   return resetToken;
 };
 

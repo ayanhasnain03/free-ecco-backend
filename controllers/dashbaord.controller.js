@@ -141,13 +141,126 @@ export const getLatestTransactions = asyncHandler(async (req, res, next) => {
   });
 });
 export const getAllOrders = asyncHandler(async (req, res, next) => {
-  const {page = 1, limit = 10} = req.query;
+  const { page = 1, limit = 10 } = req.query;
 
-  const orders = await Order.find().sort({ createdAt: -1 }).limit(limit).skip((page-1)*limit);
+  const orders = await Order.find()
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip((page - 1) * limit);
   const totalOrders = await Order.countDocuments();
   res.status(200).json({
     success: true,
     orders,
-    totalOrders
+    totalOrders,
+  });
+});
+
+export const getMonthDashboard = asyncHandler(async (req, res, next) => {
+  const today = new Date();
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(today.getMonth() - 11);
+
+  const monthlyData = await Order.aggregate([
+    {
+      $match: {
+        createdAt: {
+          $gte: twelveMonthsAgo,
+          $lt: today,
+        },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: "$createdAt" },
+          month: { $month: "$createdAt" },
+        },
+        totalRevenue: { $sum: "$total" },
+        totalOrders: { $sum: 1 },
+      },
+    },
+    {
+      $sort: { "_id.year": 1, "_id.month": 1 },
+    },
+  ]);
+
+  const monthlyUSers = await User.aggregate([
+    {
+      $match: {
+        createdAt: {
+          $gte: twelveMonthsAgo,
+          $lt: today,
+        },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: "$createdAt" },
+          month: { $month: "$createdAt" },
+        },
+        totalUsers: { $sum: 1 },
+      },
+    },
+    {
+      $sort: { "_id.year": 1, "_id.month": 1 },
+    },
+  ]);
+
+  const revenueByMonth = new Array(12).fill(0);
+  const ordersByMonth = new Array(12).fill(0);
+  const usersByMonth = new Array(12).fill(0);
+
+  monthlyUSers.forEach(({ _id, totalUsers }) => {
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+
+    const monthIndex =
+      _id.year === currentYear ? _id.month - 1 : _id.month + currentMonth - 11;
+
+    usersByMonth[monthIndex] = totalUsers;
+  });
+
+  monthlyData.forEach(({ _id, totalRevenue, totalOrders }) => {
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+
+    const monthIndex =
+      _id.year === currentYear ? _id.month - 1 : _id.month + currentMonth - 11;
+
+    revenueByMonth[monthIndex] = totalRevenue;
+    ordersByMonth[monthIndex] = totalOrders;
+  });
+
+  res.status(200).json({
+    success: true,
+    stats: {
+      revenueByMonth,
+      ordersByMonth,
+      usersByMonth,
+    },
+  });
+});
+export const PieChart = asyncHandler(async (req, res, next) => {
+  const orders = await Order.find();
+  const orderStatusCounts = {
+    Pending: 0,
+    Shipped: 0,
+    Delivered: 0,
+    Canceled: 0,
+    Returned: 0,
+  };
+  const paymentMethodCounts = {
+    COD: 0,
+    razorpay: 0,
+  }
+  orders.forEach((order) => {
+    orderStatusCounts[order.status]++;
+    paymentMethodCounts[order.paymentMethod]++;
+  });
+  res.status(200).json({
+    success: true,
+    orderStatusCounts,
+    paymentMethodCounts
   });
 })

@@ -2,11 +2,13 @@
 import express from "express";
 import {
   addtoWishList,
+  forgetpassword,
   getProfile,
   getWishList,
   loginUser,
   logOutUser,
   removeFromWishList,
+  resetpassword,
   updateProfile,
   userRegister,
 } from "../controllers/user.controller.js";
@@ -22,11 +24,14 @@ router.post(
   userRegister
 );
 router.post("/login", loginUser);
+router.post("/forgetpassword",forgetpassword)
+router.post("/resetpassword/:token",resetpassword)
 router.use(isAuthenticated);
 
 router.get("/logout", logOutUser);
 router.get("/profile", getProfile);
 router.put("/profile/update", avtarUpload, updateProfile);
+
 router.route("/wishlist").post(addtoWishList).put(removeFromWishList).get(getWishList);
 
 export default router;

@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import dbConnect from "./lib/db.con.js";
+import morgan from "morgan";
 import { v2 as cloudinary } from "cloudinary";
 
 const app = express();
@@ -11,12 +12,12 @@ dbConnect();
 
 app.use(express.json());
 app.use(cookieParser());
-
+app.use(morgan("dev"))
 
 app.use(cors({
   origin: process.env.CLIENT_URL,
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Allowed methods
 }));
 
 cloudinary.config({

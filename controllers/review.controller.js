@@ -115,7 +115,6 @@ export const createReview = asyncHandler(async (req, res, next) => {
 export const deleteReview = asyncHandler(async (req, res, next) => {
   const id = req.params.id;
 
-
   const review = await Review.findById(id);
   
   if (!review) {
@@ -129,13 +128,11 @@ export const deleteReview = asyncHandler(async (req, res, next) => {
   }
 
  
-  if (review.image && Array.isArray(review.image)) {
+ 
+  if (review.image && Array.isArray(review.image) && review.image.length > 0) {
     await deleteFile(review.image.map((image) => image.public_id));
-  } else if (review.image) {
-    await deleteFile([review.image.public_id]);
   }
-
-
+  
   await Review.findByIdAndDelete(id);
 
   product.reviews = product.reviews.filter(

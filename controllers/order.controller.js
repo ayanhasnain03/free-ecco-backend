@@ -312,3 +312,14 @@ export const updateOrderStatus = asyncHandler(async (req, res, next) => {
     message: "Order status updated successfully",
   });
 });
+export const deleteOrder = asyncHandler(async (req, res, next) => {
+  const id = req.params.id;
+  const order = await Order.findByIdAndDelete(id);
+  if (!order) {
+    return next(new SendError("Order not found", 404));
+  }
+  res.status(200).json({
+    success: true,
+    message: "Order deleted successfully",
+  });
+})

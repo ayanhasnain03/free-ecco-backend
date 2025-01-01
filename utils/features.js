@@ -116,3 +116,28 @@ await transpoter.sendMail({
   text
 })
 }
+
+
+export const getChartData = ({
+  length,       
+  docArr,     
+  today,       
+  revenueField, 
+}) => {
+  const orderCounts = new Array(length).fill(0);
+  const revenuePerMonth = new Array(length).fill(0); 
+
+  docArr.forEach((i) => {
+    const creationDate = i.createdAt;
+    const monthDiff = (today.getMonth() - creationDate.getMonth() + 12) % 12;
+
+    if (monthDiff < length) {
+      orderCounts[length - monthDiff - 1] += 1; 
+      if (revenueField) {
+        revenuePerMonth[length - monthDiff - 1] += i[revenueField]; 
+      }
+    }
+  });
+
+  return { orderCounts, revenuePerMonth }; 
+};

@@ -2,7 +2,10 @@ import { asyncHandler } from "../middlewares/error.js";
 import Order from "../models/order.model.js";
 import Product from "../models/product.model.js";
 import { User } from "../models/user.modal.js";
-import { calculatePercentageIncrease } from "../utils/features.js";
+import {
+  calculatePercentageIncrease,
+  getChartData,
+} from "../utils/features.js";
 
 export const getTotalCounts = asyncHandler(async (req, res, next) => {
   const today = new Date();
@@ -99,7 +102,6 @@ export const getTotalCounts = asyncHandler(async (req, res, next) => {
 
 export const getWeekDashboard = asyncHandler(async (req, res, next) => {
   const today = new Date();
-
   const lastWeekAgo = new Date();
 
   lastWeekAgo.setDate(today.getDate() - 7);
@@ -112,7 +114,6 @@ export const getWeekDashboard = asyncHandler(async (req, res, next) => {
   });
 
   const orderWeekCounts = new Array(7).fill(0);
-
   const lastWeekRevenueCounts = new Array(7).fill(0);
 
   lastWeekOrders.forEach((order) => {
@@ -154,93 +155,54 @@ export const getAllOrders = asyncHandler(async (req, res, next) => {
     totalOrders,
   });
 });
-
 export const getMonthDashboard = asyncHandler(async (req, res, next) => {
   const today = new Date();
-  const twelveMonthsAgo = new Date();
-  twelveMonthsAgo.setMonth(today.getMonth() - 11);
 
-  const monthlyData = await Order.aggregate([
-    {
-      $match: {
-        createdAt: {
-          $gte: twelveMonthsAgo,
-          $lt: today,
-        },
-      },
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(today.getMonth() - 6);
+
+  const sixMontOrderPromise = Order.find({
+    createdAt: {
+      $gte: sixMonthsAgo,
+      $lt: today,
     },
-    {
-      $group: {
-        _id: {
-          year: { $year: "$createdAt" },
-          month: { $month: "$createdAt" },
-        },
-        totalRevenue: { $sum: "$total" },
-        totalOrders: { $sum: 1 },
-      },
+  }).select("createdAt total");
+
+  const sixMonthUserPromise = User.find({
+    createdAt: {
+      $gte: sixMonthsAgo,
+      $lt: today,
     },
-    {
-      $sort: { "_id.year": 1, "_id.month": 1 },
-    },
+  }).select("createdAt");
+
+  const [orders, users] = await Promise.all([
+    sixMontOrderPromise,
+    sixMonthUserPromise,
   ]);
 
-  const monthlyUSers = await User.aggregate([
-    {
-      $match: {
-        createdAt: {
-          $gte: twelveMonthsAgo,
-          $lt: today,
-        },
-      },
-    },
-    {
-      $group: {
-        _id: {
-          year: { $year: "$createdAt" },
-          month: { $month: "$createdAt" },
-        },
-        totalUsers: { $sum: 1 },
-      },
-    },
-    {
-      $sort: { "_id.year": 1, "_id.month": 1 },
-    },
-  ]);
-
-  const revenueByMonth = new Array(12).fill(0);
-  const ordersByMonth = new Array(12).fill(0);
-  const usersByMonth = new Array(12).fill(0);
-
-  monthlyUSers.forEach(({ _id, totalUsers }) => {
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-
-    const monthIndex =
-      _id.year === currentYear ? _id.month - 1 : _id.month + currentMonth - 11;
-
-    usersByMonth[monthIndex] = totalUsers;
+  const { orderCounts, revenuePerMonth } = getChartData({
+    length: 12,
+    today,
+    docArr: orders,
+    revenueField: "total",
   });
 
-  monthlyData.forEach(({ _id, totalRevenue, totalOrders }) => {
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-
-    const monthIndex =
-      _id.year === currentYear ? _id.month - 1 : _id.month + currentMonth - 11;
-
-    revenueByMonth[monthIndex] = totalRevenue;
-    ordersByMonth[monthIndex] = totalOrders;
+  const { orderCounts: usersByMonth } = getChartData({
+    length: 12,
+    today,
+    docArr: users,
   });
 
   res.status(200).json({
     success: true,
     stats: {
-      revenueByMonth,
-      ordersByMonth,
-      usersByMonth,
+      revenueByMonth: revenuePerMonth,
+      ordersByMonth: orderCounts,
+      usersByMonth: usersByMonth,
     },
   });
 });
+
 export const PieChart = asyncHandler(async (req, res, next) => {
   const orders = await Order.find();
   const orderStatusCounts = {
@@ -253,7 +215,7 @@ export const PieChart = asyncHandler(async (req, res, next) => {
   const paymentMethodCounts = {
     COD: 0,
     razorpay: 0,
-  }
+  };
   orders.forEach((order) => {
     orderStatusCounts[order.status]++;
     paymentMethodCounts[order.paymentMethod]++;
@@ -261,6 +223,6 @@ export const PieChart = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     orderStatusCounts,
-    paymentMethodCounts
+    paymentMethodCounts,
   });
-})
+});

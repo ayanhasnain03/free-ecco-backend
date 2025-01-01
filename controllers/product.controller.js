@@ -3,7 +3,7 @@ import Category from "../models/category.model.js";
 import Product from "../models/product.model.js";
 import Review from "../models/review.modal.js";
 
-import { deleteFile, uploadFile } from "../utils/features.js";
+import {  uploadFile } from "../utils/features.js";
 import { SendError } from "../utils/sendError.js";
 import cloudinary from "cloudinary";
 export const getProducts = asyncHandler(async (req, res, next) => {
@@ -98,7 +98,6 @@ if(rating){
   }
 });
 
-
 export const searchProducts = asyncHandler(async (req, res, next) => {
   const { keyword } = req.query;
 
@@ -110,19 +109,54 @@ export const searchProducts = asyncHandler(async (req, res, next) => {
   }
 
   
-  const products = await Product.find({
-    $or: [
-      { name: { $regex: keyword, $options: "i" } },
-      { description: { $regex: keyword, $options: "i" } },
-    ],
-  }) .select("name description images") 
-  .populate("category", "name");
+  let products = await Product.aggregate([
+    {
+      $lookup: {
+        from: "categories", 
+        localField: "category",
+        foreignField: "_id",
+        as: "categoryDetails",
+      },
+    },
+    {
+      $unwind: "$categoryDetails", 
+    },
+    {
+      $match: {
+        $or: [
+          { name: { $regex: keyword, $options: "i" } },
+          { description: { $regex: keyword, $options: "i" } },
+          { brand: { $regex: keyword, $options: "i" } },
+          { "categoryDetails.name": { $regex: keyword, $options: "i" } }, 
+        ],
+      },
+    },
+    {
+      $project: {
+        name: 1,
+        description: 1,
+        images: 1,
+        category: 1,
+        brand: 1,
+        "categoryDetails.name": 1, 
+      },
+    },
+  ]);
 
-  res.status(200).json({
-    success: true,
-    products,
+  if (products.length > 0) {
+    return res.status(200).json({
+      success: true,
+      products,
+    });
+  }
+
+
+  return res.status(404).json({
+    success: false,
+    message: "No products found.",
   });
 });
+
 
 
 export const getProductById = asyncHandler(async (req, res, next) => {
@@ -186,6 +220,8 @@ export const createProduct = asyncHandler(async (req, res, next) => {
   const files = req.files || [];
   const { name, description, price, brand, stock, category, sizes,for:forwhat,discount,sale } =
     req.body;
+
+
 
   const categoryID = await Category.findOne({ name: category }).select("_id");
   if (!categoryID) {

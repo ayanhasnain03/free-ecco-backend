@@ -83,6 +83,10 @@ const orderSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    shippingCharge:{
+      type:Number,
+      required:true
+    }
   },
   { timestamps: true }
 );

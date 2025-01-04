@@ -5,15 +5,15 @@ import {createTransport} from "nodemailer"
 const transformFileOnBase64 = (file) =>
   `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
 
-export const uploadFile = async (files = []) => {
+export const uploadFile = async (files = [], folder = "") => {
   const upload = files.map((file) => {
     return new Promise((resolve, reject) => {
       cloudinary.uploader.upload(
         transformFileOnBase64(file),
         {
-          folder: "fashAt",
-          resource_type: "image",
-          public_id: uuid(),
+          folder: folder ? `fashAt/${folder}` : "fashAt", 
+          resource_type: "image", 
+          public_id: uuid(), 
         },
         (error, result) => {
           if (error) return reject(error);
@@ -22,17 +22,19 @@ export const uploadFile = async (files = []) => {
       );
     });
   });
+
   try {
     const res = await Promise.all(upload);
-    const formAtImage = res.map((file) => ({
+    const formattedImages = res.map((file) => ({
       public_id: file.public_id,
       url: file.secure_url,
     }));
-    return formAtImage;
+    return formattedImages;
   } catch (error) {
-    throw new SendError(error.message || "Something went wrong", 400);
+    throw new SendError(error.message || "Something went wrong during file upload", 400);
   }
 };
+
 export const deleteFile = async (publicIds = []) => {
   if (!publicIds || publicIds.length === 0) {
     throw new SendError("No images provided for deletion", 400);

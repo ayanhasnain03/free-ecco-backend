@@ -4,7 +4,8 @@ import { User } from "../models/user.modal.js";
 import { sendEmail, sendToken, uploadFile } from "../utils/features.js";
 import { SendError } from "../utils/sendError.js";
 import cloudinary from "cloudinary";
-
+import Contact from "../models/contact.model.js";
+import nodemailer from "nodemailer";
 export const userRegister = asyncHandler(async (req, res, next) => {
   const file = req.file;
   if (!file) return next(new SendError("Image is required", 400));
@@ -15,7 +16,7 @@ export const userRegister = asyncHandler(async (req, res, next) => {
     return next(new SendError("Phone number must be 10 digits", 400));
   const existUser = await User.findOne({ email });
   if (existUser) return next(new SendError("User already exist", 400));
-  const result = await uploadFile([file]);
+  const result = await uploadFile([file], "avatar");
 
   const avatar = {
     public_id: result[0].public_id,
@@ -47,8 +48,8 @@ export const logOutUser = asyncHandler(async (req, res, next) => {
   res.cookie("token", "", {
     expires: new Date(Date.now()),
     httpOnly: true,
-      secure: true,
-      sameSite: "none",
+    secure: true,
+    sameSite: "none",
   });
   res.status(200).json({
     success: true,
@@ -180,4 +181,202 @@ export const resetpassword = asyncHandler(async (req, res, next) => {
     success: true,
     message: "Password reset successfully",
   });
+});
+
+export const getAllUsers = asyncHandler(async (req, res, next) => {
+  const { page = 1, limit = 10, keyword = "" } = req.query;
+
+  const users = await User.find({
+    $or: [
+      { name: { $regex: keyword, $options: "i" } },
+      { email: { $regex: keyword, $options: "i" } },
+      { phoneNo: { $regex: keyword, $options: "i" } },
+    ],
+  })
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .sort({ createdAt: -1 });
+
+  if (!users) return next(new SendError("Users not found", 404));
+
+  const usersCount = await User.find({
+    $or: [
+      { name: { $regex: keyword, $options: "i" } },
+      { email: { $regex: keyword, $options: "i" } },
+      { phoneNo: { $regex: keyword, $options: "i" } },
+    ],
+  });
+  const totalUsers = await User.countDocuments();
+  const totalUsersForPage = usersCount.length;
+  const totalPage = Math.ceil(totalUsersForPage / limit);
+
+  res.json({
+    success: true,
+    users,
+    totalPage,
+    totalUsers,
+  });
+});
+
+export const deleteUser = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const user = await User.findById(id);
+
+  if (!user) return next(new SendError("User not found", 404));
+
+  if (user.avatar && user.avatar[0]?.public_id) {
+    const publicId = user.avatar[0].public_id;
+    await cloudinary.v2.uploader.destroy(publicId);
+  }
+
+  await user.deleteOne();
+
+  res.json({
+    success: true,
+    message: "User deleted successfully",
+  });
+});
+
+export const updateUserRole = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { role } = req.body;
+
+  const user = await User.findById(id);
+  if (!user) return next(new SendError("User not found", 404));
+
+  if (user.role === "user") {
+    user.role = "admin";
+  } else {
+    user.role = "user";
+  }
+
+  await user.save();
+
+  res.json({
+    success: true,
+    message: "User role updated successfully",
+  });
+});
+
+export const contactCreate = asyncHandler(async (req, res, next) => {
+  const { name, email, phoneNo, message } = req.body;
+  console.log(req.body);
+
+  if (!name || !email || !phoneNo || !message) {
+    return next(new SendError("Please fill all the fields"));
+  }
+
+  const user = await Contact.create({ name, email, phoneNo, message });
+
+  // Updated email template with `#fc0000` color
+  const emailTemplate = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+      <h2 style="color: #fc0000;">New Contact Message</h2>
+      <p><strong>Name:</strong> ${user.name}</p>
+      <p><strong>Email:</strong> ${user.email}</p>
+      <p><strong>Phone Number:</strong> ${user.phoneNo}</p>
+      <p><strong>Message:</strong></p>
+      <blockquote style="margin: 10px 0; padding: 10px; background: #fce4e4; border-left: 5px solid #fc0000; color: #333;">
+        ${user.message}
+      </blockquote>
+    </div>
+  `;
+
+  const transporter = nodemailer.createTransport({
+    service: "Gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: process.env.EMAIL_USER,
+      subject: `Message from ${user.name}`,
+      html: emailTemplate,
+    });
+
+    res.status(201).json({
+      message: "Message sent successfully!",
+    });
+  } catch (error) {
+    return next(
+      new SendError("Failed to send the message. Please try again later.")
+    );
+  }
+});
+
+export const getContacts = asyncHandler(async (req, res, next) => {
+  const { page = "1", limit = "10" } = req.query;
+  const contacts = await Contact.find()
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .sort({ createdAt: -1 });
+  const totalMessages = await Contact.countDocuments();
+  const totalPage = Math.ceil(totalMessages / limit);
+
+  if (!contacts) return next(new SendError("Contacts not found", 404));
+  res.json({
+    success: true,
+    contacts,
+    totalPage,
+    totalMessages,
+  });
+});
+
+export const replyContact = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { reply } = req.body;
+
+  const contact = await Contact.findById(id);
+  if (!contact) return next(new SendError("Contact not found", 404));
+
+  contact.reply = reply;
+  await contact.save();
+
+  const emailTemplate = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+      <h2 style="color: #fc0000;">Reply from Admin</h2>
+      <p>Dear <strong>${contact.name}</strong>,</p>
+      <p>Thank you for reaching out to us. Below is our response to your query:</p>
+      <blockquote style="margin: 10px 0; padding: 15px; background: #fce4e4; border-left: 5px solid #fc0000; font-style: italic; color: #555;">
+        ${reply}
+      </blockquote>
+      <p>If you have further questions or need additional assistance, feel free to contact us at any time.</p>
+      <p>Best regards,</p>
+      <p style="color: #fc0000; font-weight: bold;">The Admin Team</p>
+      <hr style="border-top: 1px solid #ddd; margin: 20px 0;" />
+      <footer style="font-size: 0.9rem; color: #666;">
+        <p>If this email has reached you in error, please disregard it.</p>
+        <p>&copy; ${new Date().getFullYear()} Fash Alt</p>
+      </footer>
+    </div>
+  `;
+
+  const transporter = nodemailer.createTransport({
+    service: "Gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: contact.email,
+      subject: `Message from Fash Alt`,
+      html: emailTemplate,
+    });
+
+    return res.status(201).json({
+      message: "Reply sent and email sent successfully!",
+    });
+  } catch (error) {
+    return next(
+      new SendError("Failed to send the message. Please try again later.")
+    );
+  }
 });

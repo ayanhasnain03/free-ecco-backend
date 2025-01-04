@@ -8,7 +8,7 @@ import nodemailer from "nodemailer";
 import Product from "../models/product.model.js";
 
 const generateInvoiceBuffer = async (order, user) => {
-  const doc = new PDFDocument({ size: "A4" });
+  const doc = new PDFDocument({ size: "A4", margin: 50 });
   const buffers = [];
 
   return new Promise((resolve, reject) => {
@@ -16,82 +16,106 @@ const generateInvoiceBuffer = async (order, user) => {
       doc.on("data", buffers.push.bind(buffers));
       doc.on("end", () => resolve(Buffer.concat(buffers)));
 
+      doc.font("public/NotoSans-Regular.ttf");
+
       doc
         .image("public/logo.jpg", 50, 20, { width: 100 })
         .fontSize(22)
         .text("INVOICE", { align: "center" })
         .moveDown(1);
 
-      doc.fontSize(10).text("Fash Alt", { align: "center" });
-      doc.text("123 Business St, City, Country", { align: "center" });
-      doc.text("Phone: +1234567890 | Email: example@example.com", {
-        align: "center",
-      });
-      doc.moveDown(2);
+      doc
+        .fontSize(10)
+        .text("Fash Alt", { align: "center" })
+        .text("123 Business St, City, Country", { align: "center" })
+        .text("Phone: +1234567890 | Email: example@example.com", {
+          align: "center",
+        })
+        .moveDown(2);
 
-      doc.fontSize(12).text(`Order ID: ${order.orderId}`);
-      doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`);
-      doc.text(
-        `Estimated Delivery: ${new Date(order.estimatedDelivery).toLocaleDateString()}`
-      );
-      doc.moveDown(1);
+      doc
+        .fontSize(12)
+        .text(`Order ID: ${order.orderId}`)
+        .text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`)
+        .text(
+          `Estimated Delivery: ${new Date(
+            order.estimatedDelivery
+          ).toLocaleDateString()}`
+        )
+        .moveDown(1);
 
-      doc.text(`Customer: ${user.name}`);
-      doc.text(`Phone: ${order.customerPhoneNumber}`);
-      doc.text(`Email: ${user.email}`);
-      doc.moveDown(1);
+      doc
+        .text(`Customer: ${user.name}`)
+        .text(`Phone: ${order.customerPhoneNumber}`)
+        .text(`Email: ${user.email}`)
+        .moveDown(1);
 
-      doc.text("Shipping Address:", { underline: true });
-      doc.text(`${order.shippingAddress.street}`);
-      doc.text(`${order.shippingAddress.city}, ${order.shippingAddress.state}`);
-      doc.text(
-        `${order.shippingAddress.zipCode}, ${order.shippingAddress.country}`
-      );
-      doc.moveDown(1);
+      doc
+        .text("Shipping Address:", { underline: true })
+        .text(`${order.shippingAddress.street}`)
+        .text(`${order.shippingAddress.city}, ${order.shippingAddress.state}`)
+        .text(
+          `${order.shippingAddress.zipCode}, ${order.shippingAddress.country}`
+        )
+        .moveDown(1);
 
-      doc.text("Items:", { underline: true });
-      doc.text("---------------------------------------------------------");
-
+      doc
+        .text("Items:", { underline: true })
+        .text("---------------------------------------------------------");
       order.items.forEach((item) => {
         doc.text(
-          `${item.name} x ${item.quantity} - $${item.price} each`
+          `${item.name} x ${item.quantity} - ₹${item.price.toFixed(2)} each`
         );
       });
+      doc
+        .text("---------------------------------------------------------")
+        .moveDown(1);
 
-      doc.moveDown(1);
-      doc.text("---------------------------------------------------------");
+      doc
+        .text(`Subtotal: ₹${order.subtotal.toFixed(2)}`)
+        .text(`Shipping: ₹${order.shippingCharge.toFixed(2)}`)
+        .text(`Discounts: -₹${order.discounts.toFixed(2)}`)
+        .text(`Tax: ₹${order.tax.toFixed(2)}`)
+        .text(`Total: ₹${order.total.toFixed(2)}`)
+        .moveDown(1);
 
-      doc.text(`Subtotal: $${order.subtotal}`);
-      doc.text(`Discounts: -$${order.discounts}`);
-      doc.text(`Tax: $${order.tax}`);
-      doc.text(`Total: $${order.total}`);
-      doc.moveDown(1);
-
-      doc.fontSize(10).text("Thank you for your purchase!", { align: "center" });
+      doc
+        .fontSize(10)
+        .text("Thank you for your purchase!", { align: "center" });
 
       doc.end();
     } catch (err) {
       console.error("Error during PDF generation:", err.message);
-      reject(new SendError(`PDF generation failed: ${err.message}`, 500));
+      reject(new Error(`PDF generation failed: ${err.message}`));
     }
   });
 };
 
-
 const sendInvoiceEmail = async (userEmail, pdfBuffer) => {
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    service: process.env.EMAIL_SERVICE || "gmail",
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
   });
 
+  const htmlTemplate = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+      <h2 style="color: #4CAF50;">Thank You for Your Order!</h2>
+      <p>Hi,</p>
+      <p>We appreciate your purchase. Please find your invoice attached below.</p>
+      <p>If you have any questions, feel free to contact us at <a href="mailto:example@example.com">example@example.com</a>.</p>
+      <p>Best regards,</p>
+      <p><strong>Fash Alt Team</strong></p>
+    </div>
+  `;
+
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: `"Fash Alt" <${process.env.EMAIL_USER}>`,
     to: userEmail,
     subject: "Your Order Invoice",
-    text: "Thank you for your order! Please find your invoice attached.",
+    html: htmlTemplate,
     attachments: [
       {
         filename: "invoice.pdf",
@@ -102,14 +126,13 @@ const sendInvoiceEmail = async (userEmail, pdfBuffer) => {
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent:", info.response);
+    console.log("Email sent successfully:", info.response);
     return info.response;
   } catch (error) {
     console.error("Failed to send email:", error.message);
-    throw new SendError(`Failed to send email: ${error.message}`, 500);
+    throw new Error(`Failed to send email: ${error.message}`);
   }
 };
-
 
 export const createOrder = asyncHandler(async (req, res, next) => {
   const {
@@ -124,6 +147,7 @@ export const createOrder = asyncHandler(async (req, res, next) => {
     customerPhoneNumber,
     customerName,
     razorpayOrderId,
+    shippingCharge,
   } = req.body;
   if (
     !userId ||
@@ -134,7 +158,6 @@ export const createOrder = asyncHandler(async (req, res, next) => {
     !subtotal ||
     !total
   ) {
-   
     return next(new SendError("Missing required fields", 400));
   }
 
@@ -142,20 +165,17 @@ export const createOrder = asyncHandler(async (req, res, next) => {
   const estimatedDelivery = new Date();
   estimatedDelivery.setDate(estimatedDelivery.getDate() + 5);
 
-
-
   const user = await User.findById(userId);
   user.shippingAddress = {
     address: shippingAddress.street,
     city: shippingAddress.city,
     state: shippingAddress.state,
     pincode: shippingAddress.zipCode,
-    country: shippingAddress.country
+    country: shippingAddress.country,
   };
   await user.save();
 
   if (!user) {
-  
     return next(new SendError("User not found", 404));
   }
 
@@ -169,6 +189,7 @@ export const createOrder = asyncHandler(async (req, res, next) => {
     tax,
     subtotal,
     total,
+    shippingCharge,
     estimatedDelivery,
     customerPhoneNumber,
     customerName,
@@ -182,10 +203,8 @@ export const createOrder = asyncHandler(async (req, res, next) => {
 
   try {
     await order.save();
-
   } catch (error) {
- 
-    return next(new SendError('Error saving order to the database', 500));
+    return next(new SendError("Error saving order to the database", 500));
   }
 
   const productIds = order.items.map((item) => item.productId);
@@ -197,19 +216,18 @@ export const createOrder = asyncHandler(async (req, res, next) => {
     );
 
     if (!product) {
-   
-      return next(new SendError(`Product with ID ${item.productId} not found`, 404));
+      return next(
+        new SendError(`Product with ID ${item.productId} not found`, 404)
+      );
     }
 
-
-
     if (isNaN(product.stock) || isNaN(product.sold)) {
-     
-      return next(new SendError(`Invalid stock or sold data for ${product.name}`, 400));
+      return next(
+        new SendError(`Invalid stock or sold data for ${product.name}`, 400)
+      );
     }
 
     if (product.stock < item.quantity) {
-    
       return next(new SendError(`Insufficient stock for ${product.name}`, 400));
     }
 
@@ -221,9 +239,7 @@ export const createOrder = asyncHandler(async (req, res, next) => {
 
     try {
       await product.save();
-   
     } catch (error) {
-     
       return next(new SendError(`Error updating product ${product.name}`, 500));
     }
   }
@@ -238,18 +254,17 @@ export const createOrder = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 export const getMyOrders = asyncHandler(async (req, res, next) => {
-  const id = req.user;  
-  const { page = 1, limit = 10} = req.query;
-
+  const id = req.user;
+  const { page = 1, limit = 10 } = req.query;
 
   const pageNumber = parseInt(page, 10);
   const pageSize = parseInt(limit, 10);
 
-
   if (isNaN(pageNumber) || pageNumber < 1) {
-    return res.status(400).json({ success: false, message: "Invalid page number" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid page number" });
   }
 
   if (isNaN(pageSize) || pageSize < 1) {
@@ -322,4 +337,4 @@ export const deleteOrder = asyncHandler(async (req, res, next) => {
     success: true,
     message: "Order deleted successfully",
   });
-})
+});

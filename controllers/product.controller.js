@@ -6,14 +6,21 @@ import Review from "../models/review.modal.js";
 import {  uploadFile } from "../utils/features.js";
 import { SendError } from "../utils/sendError.js";
 import cloudinary from "cloudinary";
+
 export const getProducts = asyncHandler(async (req, res, next) => {
-  const { category, price, brand, sort, discount, sizes, forwhat,rating } = req.query;
+  const { category="", price="", brand, sort, discount="", sizes="", forwhat="",rating,search="" } = req.query;
 
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 8;
   const skip = (page - 1) * limit;
 
   const baseQuery = {};
+
+if(search){
+  if (search) {
+    baseQuery.name = { $regex: new RegExp(search, "i") }; 
+  }
+}
 
   if (forwhat) {
   
@@ -157,8 +164,6 @@ export const searchProducts = asyncHandler(async (req, res, next) => {
   });
 });
 
-
-
 export const getProductById = asyncHandler(async (req, res, next) => {
   const id = req.params.id;
   const product = await Product.findById(id).populate("category", "name").populate({
@@ -243,7 +248,7 @@ export const createProduct = asyncHandler(async (req, res, next) => {
   }
   try {
 
-    const uploadResults = await uploadFile(files);
+    const uploadResults = await uploadFile(files,"product");
     const images = uploadResults.map((file) => ({
       public_id: file.public_id,
       url: file.url,
@@ -279,6 +284,46 @@ export const newProducts = asyncHandler(async (req, res, next) => {
     products,
   });
 });
+
+
+export const updateProduct = asyncHandler(async (req, res, next) => {
+  const id = req.params.id;
+  if (!id) {
+    return next(new SendError("Product ID is required", 400));
+  }
+  const product = await Product.findById(id);
+  if (!product) {
+    return next(new SendError("Product not found", 404));
+  }
+  const categoryID = await Category.findOne({ name: req.body.category }).select("_id");
+if (!categoryID) {
+  return next(new SendError("Category not found", 404));
+}
+
+  product.name = req.body.name || product.name;
+  product.description = req.body.description || product.description;
+  product.price = req.body.price || product.price;
+  product.brand = req.body.brand || product.brand;
+  product.stock = req.body.stock || product.stock;
+  product.category = categoryID || product.category;
+  product.sizes = req.body.sizes || product.sizes;
+  product.for = req.body.for || product.for;
+  product.discount = req.body.discount || product.discount;
+  product.sale = req.body.sale || product.sale;
+
+
+
+
+  await product.save();
+
+
+  res.status(200).json({
+    success: true,
+    message: "Product updated successfully",
+    product,
+  });
+});
+
 
 export const topSellingProducts = asyncHandler(async (req, res, next) => {
   const products = await Product.find().sort({ sold: -1 }).limit(4);
@@ -316,3 +361,4 @@ export const saleProducts = asyncHandler(async (req, res, next) => {
     products,
   });
 });
+

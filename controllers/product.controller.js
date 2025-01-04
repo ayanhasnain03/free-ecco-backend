@@ -295,17 +295,16 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
   if (!product) {
     return next(new SendError("Product not found", 404));
   }
-  const categoryID = await Category.findOne({ name: req.body.category }).select("_id");
-if (!categoryID) {
-  return next(new SendError("Category not found", 404));
-}
+
+
+
 
   product.name = req.body.name || product.name;
   product.description = req.body.description || product.description;
   product.price = req.body.price || product.price;
   product.brand = req.body.brand || product.brand;
   product.stock = req.body.stock || product.stock;
-  product.category = categoryID || product.category;
+  product.category = req.body.category._id || product.category;
   product.sizes = req.body.sizes || product.sizes;
   product.for = req.body.for || product.for;
   product.discount = req.body.discount || product.discount;

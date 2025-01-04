@@ -6,6 +6,7 @@ import { SendError } from "../utils/sendError.js";
 import cloudinary from "cloudinary";
 import Contact from "../models/contact.model.js";
 import nodemailer from "nodemailer";
+import mongoose from "mongoose";
 export const userRegister = asyncHandler(async (req, res, next) => {
   const file = req.file;
   if (!file) return next(new SendError("Image is required", 400));
@@ -123,15 +124,26 @@ export const addtoWishList = asyncHandler(async (req, res, next) => {
   });
 });
 export const removeFromWishList = asyncHandler(async (req, res, next) => {
-  const { productId } = req.body;
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new SendError("Invalid product ID format", 400));
+  }
+
   const user = await User.findById(req.user);
-  if (!user) return next(new SendError("User not found", 404));
+  if (!user) {
+    return next(new SendError("User not found", 404));
+  }
 
-  user.wishlist.pull(productId);
+  const isInWishlist = user.wishlist.some((itemId) => itemId.toString() === id);
+  if (!isInWishlist) {
+    return next(new SendError("Product not found in wishlist", 404));
+  }
 
+  user.wishlist = user.wishlist.filter((itemId) => itemId.toString() !== id);
   await user.save();
 
-  res.json({
+  res.status(200).json({
     success: true,
     message: "Product removed from wishlist successfully",
   });
@@ -268,7 +280,7 @@ export const contactCreate = asyncHandler(async (req, res, next) => {
 
   const user = await Contact.create({ name, email, phoneNo, message });
 
-  // Updated email template with `#fc0000` color
+
   const emailTemplate = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
       <h2 style="color: #fc0000;">New Contact Message</h2>

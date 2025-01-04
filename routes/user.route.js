@@ -43,11 +43,10 @@ router.get("/contacts", isAdmin, getContacts);
 router.delete("/:id", isAdmin, deleteUser);
 router.put("/:id", isAdmin, updateUserRole);
 router.put("/contact/:id", isAdmin, replyContact);
-
+router.delete("/wishlist/:id", isAuthenticated, removeFromWishList);
 router
   .route("/wishlist", isAuthenticated)
   .post(addtoWishList)
-  .put(removeFromWishList)
   .get(getWishList);
 
 export default router;

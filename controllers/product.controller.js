@@ -3,12 +3,22 @@ import Category from "../models/category.model.js";
 import Product from "../models/product.model.js";
 import Review from "../models/review.modal.js";
 
-import {  uploadFile } from "../utils/features.js";
+import { uploadFile } from "../utils/features.js";
 import { SendError } from "../utils/sendError.js";
 import cloudinary from "cloudinary";
 
 export const getProducts = asyncHandler(async (req, res, next) => {
-  const { category="", price="", brand, sort, discount="", sizes="", forwhat="",rating,search="" } = req.query;
+  const {
+    category = "",
+    price = "",
+    brand,
+    sort,
+    discount = "",
+    sizes = "",
+    forwhat = "",
+    rating,
+    search = "",
+  } = req.query;
 
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 8;
@@ -16,19 +26,18 @@ export const getProducts = asyncHandler(async (req, res, next) => {
 
   const baseQuery = {};
 
-if(search){
   if (search) {
-    baseQuery.name = { $regex: new RegExp(search, "i") }; 
+    if (search) {
+      baseQuery.name = { $regex: new RegExp(search, "i") };
+    }
   }
-}
 
   if (forwhat) {
-  
     baseQuery.for = forwhat;
   }
-if(rating){
-  baseQuery.rating = rating;
-}
+  if (rating) {
+    baseQuery.rating = rating;
+  }
   if (category) {
     const categoryId = await Category.findOne({ name: category }).select("_id");
     if (categoryId) {
@@ -49,9 +58,15 @@ if(rating){
   if (price) {
     const [minPrice, maxPrice] = price.split("-").map((p) => parseFloat(p));
     if (!isNaN(minPrice) && !isNaN(maxPrice)) {
-      baseQuery.price = { $gte: minPrice, $lte: maxPrice };
+      baseQuery.$expr = {
+        $and: [
+          { $gte: [{ $subtract: ["$price", { $multiply: ["$price", { $divide: ["$discount", 100] }] }] }, minPrice] },
+          { $lte: [{ $subtract: ["$price", { $multiply: ["$price", { $divide: ["$discount", 100] }] }] }, maxPrice] }
+        ],
+      };
     }
   }
+  
 
   if (discount) {
     baseQuery.discount = discount;
@@ -90,7 +105,7 @@ if(rating){
       .skip(skip)
       .limit(limit)
       .populate("category", "name");
-  
+
     const totalProducts = await Product.countDocuments(baseQuery);
     const totalPage = Math.ceil(totalProducts / limit);
 
@@ -115,18 +130,17 @@ export const searchProducts = asyncHandler(async (req, res, next) => {
     });
   }
 
-  
   let products = await Product.aggregate([
     {
       $lookup: {
-        from: "categories", 
+        from: "categories",
         localField: "category",
         foreignField: "_id",
         as: "categoryDetails",
       },
     },
     {
-      $unwind: "$categoryDetails", 
+      $unwind: "$categoryDetails",
     },
     {
       $match: {
@@ -134,7 +148,7 @@ export const searchProducts = asyncHandler(async (req, res, next) => {
           { name: { $regex: keyword, $options: "i" } },
           { description: { $regex: keyword, $options: "i" } },
           { brand: { $regex: keyword, $options: "i" } },
-          { "categoryDetails.name": { $regex: keyword, $options: "i" } }, 
+          { "categoryDetails.name": { $regex: keyword, $options: "i" } },
         ],
       },
     },
@@ -145,7 +159,7 @@ export const searchProducts = asyncHandler(async (req, res, next) => {
         images: 1,
         category: 1,
         brand: 1,
-        "categoryDetails.name": 1, 
+        "categoryDetails.name": 1,
       },
     },
   ]);
@@ -157,7 +171,6 @@ export const searchProducts = asyncHandler(async (req, res, next) => {
     });
   }
 
-
   return res.status(404).json({
     success: false,
     message: "No products found.",
@@ -166,13 +179,15 @@ export const searchProducts = asyncHandler(async (req, res, next) => {
 
 export const getProductById = asyncHandler(async (req, res, next) => {
   const id = req.params.id;
-  const product = await Product.findById(id).populate("category", "name").populate({
-    path: "reviews",
-    populate: {
-      path: "user",
-      select: "name avatar",
-    },
-  });
+  const product = await Product.findById(id)
+    .populate("category", "name")
+    .populate({
+      path: "reviews",
+      populate: {
+        path: "user",
+        select: "name avatar",
+      },
+    });
   if (!product) return next(new SendError("Product not found", 404));
   res.status(200).json({
     success: true,
@@ -190,11 +205,11 @@ export const deleteProduct = asyncHandler(async (req, res, next) => {
 
   const reviews = await Review.find({ product: id }).select("_id image");
 
-const reviewPuclicIds = reviews.map((review) => review.image[0].public_id);
+  const reviewPuclicIds = reviews.map((review) => review.image[0].public_id);
 
-for (const publicId of reviewPuclicIds) {
-  await cloudinary.v2.uploader.destroy(publicId);
-}
+  for (const publicId of reviewPuclicIds) {
+    await cloudinary.v2.uploader.destroy(publicId);
+  }
 
   await Review.deleteMany({ product: id });
 
@@ -212,10 +227,6 @@ for (const publicId of reviewPuclicIds) {
     } else {
       return next(new SendError("No images found for this product", 404));
     }
-
-
-
-    
   } catch (error) {
     return next(new SendError("Failed to delete product images", 500));
   }
@@ -223,10 +234,18 @@ for (const publicId of reviewPuclicIds) {
 
 export const createProduct = asyncHandler(async (req, res, next) => {
   const files = req.files || [];
-  const { name, description, price, brand, stock, category, sizes,for:forwhat,discount,sale } =
-    req.body;
-
-
+  const {
+    name,
+    description,
+    price,
+    brand,
+    stock,
+    category,
+    sizes,
+    for: forwhat,
+    discount,
+    sale,
+  } = req.body;
 
   const categoryID = await Category.findOne({ name: category }).select("_id");
   if (!categoryID) {
@@ -247,13 +266,12 @@ export const createProduct = asyncHandler(async (req, res, next) => {
     );
   }
   try {
-
-    const uploadResults = await uploadFile(files,"product");
+    const uploadResults = await uploadFile(files, "product");
     const images = uploadResults.map((file) => ({
       public_id: file.public_id,
       url: file.url,
     }));
-    
+
     const product = await Product.create({
       name,
       description,
@@ -263,9 +281,9 @@ export const createProduct = asyncHandler(async (req, res, next) => {
       images,
       sizes,
       category: categoryID,
-      for:forwhat,
+      for: forwhat,
       discount,
-      sale
+      sale,
     });
     res.status(201).json({
       success: true,
@@ -285,7 +303,6 @@ export const newProducts = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 export const updateProduct = asyncHandler(async (req, res, next) => {
   const id = req.params.id;
   if (!id) {
@@ -295,9 +312,6 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
   if (!product) {
     return next(new SendError("Product not found", 404));
   }
-
-
-
 
   product.name = req.body.name || product.name;
   product.description = req.body.description || product.description;
@@ -310,11 +324,7 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
   product.discount = req.body.discount || product.discount;
   product.sale = req.body.sale || product.sale;
 
-
-
-
   await product.save();
-
 
   res.status(200).json({
     success: true,
@@ -322,7 +332,6 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
     product,
   });
 });
-
 
 export const topSellingProducts = asyncHandler(async (req, res, next) => {
   const products = await Product.find().sort({ sold: -1 }).limit(4);
@@ -332,13 +341,12 @@ export const topSellingProducts = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 export const getRelatedProducts = asyncHandler(async (req, res, next) => {
-  const { categoryID } = req.params; 
+  const { categoryID } = req.params;
 
   const products = await Product.find({ category: categoryID })
-    .limit(4)
-    .populate("category", "name _id");  
+    .limit(5)
+    .populate("category", "name _id");
 
   if (!products || products.length === 0) {
     return res.status(404).json({
@@ -352,7 +360,6 @@ export const getRelatedProducts = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 export const saleProducts = asyncHandler(async (req, res, next) => {
   const products = await Product.find({ sale: true }).limit(4);
   res.status(200).json({
@@ -360,4 +367,3 @@ export const saleProducts = asyncHandler(async (req, res, next) => {
     products,
   });
 });
-

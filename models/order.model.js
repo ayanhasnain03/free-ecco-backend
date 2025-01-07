@@ -19,7 +19,7 @@ const orderSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ["Paid", "Unpaid", "Pending"],
+      enum: ["Paid", "Unpaid", "Pending","Refunded","Failed"],
       default: "Unpaid",
     },
     paymentMethod: {
@@ -86,7 +86,8 @@ const orderSchema = new mongoose.Schema(
     shippingCharge:{
       type:Number,
       required:true
-    }
+    },
+
   },
   { timestamps: true }
 );

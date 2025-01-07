@@ -6,7 +6,11 @@ import { SendError } from "../utils/sendError.js";
 import PDFDocument from "pdfkit";
 import nodemailer from "nodemailer";
 import Product from "../models/product.model.js";
-
+import Razorpay from "razorpay";
+const razorpay = new Razorpay({
+  key_id: "rzp_test_H3dRMlyt954d2B",
+  key_secret: "pVb1TwmyhM0fphTKFY6YSeoC",
+});
 const generateInvoiceBuffer = async (order, user) => {
   const doc = new PDFDocument({ size: "A4", margin: 50 });
   const buffers = [];
@@ -149,6 +153,7 @@ export const createOrder = asyncHandler(async (req, res, next) => {
     razorpayOrderId,
     shippingCharge,
   } = req.body;
+
   if (
     !userId ||
     !items ||
@@ -158,6 +163,7 @@ export const createOrder = asyncHandler(async (req, res, next) => {
     !subtotal ||
     !total
   ) {
+    console.log("Error: Missing required fields");
     return next(new SendError("Missing required fields", 400));
   }
 
@@ -165,7 +171,14 @@ export const createOrder = asyncHandler(async (req, res, next) => {
   const estimatedDelivery = new Date();
   estimatedDelivery.setDate(estimatedDelivery.getDate() + 5);
 
+  console.log(`Order ID: ${orderId}, Estimated Delivery: ${estimatedDelivery}`);
+
   const user = await User.findById(userId);
+  if (!user) {
+    console.log(`Error: User with ID ${userId} not found`);
+    return next(new SendError("User not found", 404));
+  }
+
   user.shippingAddress = {
     address: shippingAddress.street,
     city: shippingAddress.city,
@@ -173,86 +186,157 @@ export const createOrder = asyncHandler(async (req, res, next) => {
     pincode: shippingAddress.zipCode,
     country: shippingAddress.country,
   };
+
   await user.save();
 
-  if (!user) {
-    return next(new SendError("User not found", 404));
-  }
-
-  const order = new Order({
-    orderId,
-    userId,
-    items,
-    paymentMethod,
-    shippingAddress,
-    discounts,
-    tax,
-    subtotal,
-    total,
-    shippingCharge,
-    estimatedDelivery,
-    customerPhoneNumber,
-    customerName,
-  });
-
-  if (paymentMethod === "razorpay") {
-    order.paymentStatus = "Paid";
-  }
-
-  order.status = "Shipped";
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
-    await order.save();
+    const order = new Order({
+      orderId,
+      userId,
+      items,
+      paymentMethod,
+      shippingAddress,
+      discounts,
+      tax,
+      subtotal,
+      total,
+      shippingCharge,
+      estimatedDelivery,
+      customerPhoneNumber,
+      customerName,
+      status: "Pending",
+      paymentStatus: paymentMethod === "razorpay" ? "Paid" : "Pending",
+    });
+
+    await order.save({ session });
+
+    for (const item of order.items) {
+      console.log(
+        `Processing item: ${item.productId}, Quantity: ${item.quantity}`
+      );
+
+      const product = await Product.findOne({ _id: item.productId }).session(
+        session
+      );
+      if (!product) {
+        console.log(`Error: Product with ID ${item.productId} not found`);
+        await session.abortTransaction();
+        return next(
+          new SendError(`Product with ID ${item.productId} not found`, 404)
+        );
+      }
+
+      if (product.isLocked) {
+        console.log(
+          `Error: Product ${product.name} is currently being processed`
+        );
+        await session.abortTransaction();
+        return next(
+          new SendError(
+            `Product ${product.name} is currently being processed`,
+            400
+          )
+        );
+      }
+
+      if (product.stock < item.quantity) {
+        console.log(`Error: Insufficient stock for ${product.name}`);
+        await session.abortTransaction();
+        return next(
+          new SendError(`Insufficient stock for ${product.name}`, 400)
+        );
+      }
+
+      product.isLocked = true;
+
+      product.stock -= item.quantity;
+      product.sold += item.quantity;
+
+      console.log(
+        `Locking product ${product.name}. Updated stock: ${product.stock}, sold: ${product.sold}`
+      );
+
+      await product.save({ session });
+    }
+
+    console.log("Committing transaction");
+    await session.commitTransaction();
+
+    for (const item of order.items) {
+      const product = await Product.findById(item.productId).session(session);
+      if (product) {
+        console.log(`Unlocking product ${product.name}`);
+        product.isLocked = false;
+        await product.save({ session });
+      }
+    }
+
+    const pdfBuffer = await generateInvoiceBuffer(order, user);
+    await sendInvoiceEmail(user.email, pdfBuffer);
+
+    console.log("Order created successfully, invoice sent");
+    res.status(201).json({
+      success: true,
+      message: "Order created successfully",
+      invoiceMessage: "Invoice sent to your email",
+    });
   } catch (error) {
-    return next(new SendError("Error saving order to the database", 500));
+    console.error("Error during order creation:", error);
+    await session.abortTransaction();
+    return next(new SendError("Error processing order", 500));
+  } finally {
+    console.log("Ending session");
+    session.endSession();
+  }
+});
+export const isProductLocked = asyncHandler(async (req, res, next) => {
+  const { productId } = req.body;
+
+  if (!productId) {
+    return next(new SendError("Product ID is required", 400));
   }
 
-  const productIds = order.items.map((item) => item.productId);
-  const products = await Product.find({ _id: { $in: productIds } });
+  const product = await Product.findById(productId);
 
-  for (const item of order.items) {
-    const product = products.find(
-      (p) => p._id.toString() === item.productId.toString()
-    );
-
-    if (!product) {
-      return next(
-        new SendError(`Product with ID ${item.productId} not found`, 404)
-      );
-    }
-
-    if (isNaN(product.stock) || isNaN(product.sold)) {
-      return next(
-        new SendError(`Invalid stock or sold data for ${product.name}`, 400)
-      );
-    }
-
-    if (product.stock < item.quantity) {
-      return next(new SendError(`Insufficient stock for ${product.name}`, 400));
-    }
-
-    product.stock -= item.quantity;
-    product.sold += item.quantity;
-
-    product.stock = Number(product.stock);
-    product.sold = Number(product.sold);
-
-    try {
-      await product.save();
-    } catch (error) {
-      return next(new SendError(`Error updating product ${product.name}`, 500));
-    }
+  if (!product) {
+    return next(new SendError("Product not found", 404));
   }
 
-  const pdfBuffer = await generateInvoiceBuffer(order, user);
-  await sendInvoiceEmail(user.email, pdfBuffer);
+  if (product.isLocked) {
+    return next(new SendError(`Product ${product.name} is currently being processed`, 400));
+  }
 
-  res.status(201).json({
+  return res.status(200).json({
     success: true,
-    message: "Order created successfully",
-    invoiceMessage: "Invoice sent to your email",
+    message: "Product is not locked",
   });
 });
+
+export const unlockTheProduct = asyncHandler(async (req, res, next) => {
+  const { productId } = req.body;
+
+  if (!productId) {
+    return next(new SendError("Product ID is required", 400));
+  }
+
+  const product = await Product.findById(productId);
+
+  if (!product) {
+    return next(new SendError("Product not found", 404));
+  }
+
+  product.isLocked = false;
+
+  await product.save();
+
+  return res.status(200).json({
+    success: true,
+    message: "Product unlocked successfully",
+  })
+})
 
 export const getMyOrders = asyncHandler(async (req, res, next) => {
   const id = req.user;

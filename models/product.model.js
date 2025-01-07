@@ -93,12 +93,14 @@ const productSchema = new mongoose.Schema(
       required: true,
       default: false,
     },
+    isLocked: { type: Boolean, default: false },
+    version: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
 
-
+productSchema.index({ name: 1 });
 const Product = mongoose.model("Product", productSchema);
 
 export default Product;

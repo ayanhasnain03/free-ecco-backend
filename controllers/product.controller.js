@@ -3,9 +3,9 @@ import Category from "../models/category.model.js";
 import Product from "../models/product.model.js";
 import Review from "../models/review.modal.js";
 
+import cloudinary from "cloudinary";
 import { uploadFile } from "../utils/features.js";
 import { SendError } from "../utils/sendError.js";
-import cloudinary from "cloudinary";
 
 export const getProducts = asyncHandler(async (req, res, next) => {
   const {
@@ -21,7 +21,7 @@ export const getProducts = asyncHandler(async (req, res, next) => {
   } = req.query;
 
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 8;
+  const limit = parseInt(req.query.limit) || 9;
   const skip = (page - 1) * limit;
 
   const baseQuery = {};
@@ -60,13 +60,32 @@ export const getProducts = asyncHandler(async (req, res, next) => {
     if (!isNaN(minPrice) && !isNaN(maxPrice)) {
       baseQuery.$expr = {
         $and: [
-          { $gte: [{ $subtract: ["$price", { $multiply: ["$price", { $divide: ["$discount", 100] }] }] }, minPrice] },
-          { $lte: [{ $subtract: ["$price", { $multiply: ["$price", { $divide: ["$discount", 100] }] }] }, maxPrice] }
+          {
+            $gte: [
+              {
+                $subtract: [
+                  "$price",
+                  { $multiply: ["$price", { $divide: ["$discount", 100] }] },
+                ],
+              },
+              minPrice,
+            ],
+          },
+          {
+            $lte: [
+              {
+                $subtract: [
+                  "$price",
+                  { $multiply: ["$price", { $divide: ["$discount", 100] }] },
+                ],
+              },
+              maxPrice,
+            ],
+          },
         ],
       };
     }
   }
-  
 
   if (discount) {
     baseQuery.discount = discount;
